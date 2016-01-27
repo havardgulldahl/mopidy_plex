@@ -1,0 +1,14 @@
+*.egg-info
+*.pyc
+*.swp
+.cache/
+.coverage
+.tox/
+MANIFEST
+build/
+dist/
+bin/
+include/
+lib/
+
+.Python
