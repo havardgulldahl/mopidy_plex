@@ -1,3 +1,4 @@
+# -*- encoding: utf-8 -*-
 from __future__ import unicode_literals
 
 import re
@@ -13,7 +14,7 @@ def get_version(filename):
 
 setup(
     name='Mopidy-Plex',
-    version=get_version('mopidy_mopidy_plex/__init__.py'),
+    version=get_version('mopidy_plex/__init__.py'),
     url='https://github.com/havardgulldahl/mopidy-plex',
     license='Apache License, Version 2.0',
     author='Håvard Gulldahl',
@@ -30,7 +31,7 @@ setup(
     ],
     entry_points={
         'mopidy.ext': [
-            'mopidy_plex = mopidy_mopidy_plex:Extension',
+            'mopidy_plex = mopidy_plex:Extension',
         ],
     },
     classifiers=[
