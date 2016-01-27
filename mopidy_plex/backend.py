@@ -10,9 +10,11 @@ from urlparse import parse_qs, urlparse
 from mopidy import backend
 from mopidy.models import Album, SearchResult, Track
 
-import pafy
-
 import pykka
+
+from plexapi.server import PlexServer
+from plexapi import audio
+from plexapi.library import MusicSection
 
 import requests
 
@@ -142,6 +144,9 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.uri_schemes = ['plex', ]
 
+        self.plex = PlexServer(config['server'])
+        self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE])[0]
+
 
 class PlexLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
@@ -157,6 +162,8 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
     def __resolve(self, uri):
         '''Resolve plex uri to a track'''
+        t = self.backend.music.get(uri) 
+        return t
 
     def get_images(self, uris):
         '''Lookup the images for the given URIs
@@ -167,7 +174,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         Parameters: uris (list of string) – list of URIs to find images for
         Return type:    {uri: tuple of mopidy.models.Image}'''
-
+        return None
 
     def search(self, query=None, uris=None, exact=False):
         '''Search the library for tracks where field contains values.
@@ -181,7 +188,8 @@ class PlexLibraryProvider(backend.LibraryProvider):
         if not query:
             return
 
-        raise NotImplemented
+        t = self.backend.music.search(uri) 
+        return t
 
         if 'uri' in query:
             search_query = ''.join(query['uri'])

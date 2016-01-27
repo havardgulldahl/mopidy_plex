@@ -23,7 +23,7 @@ class Extension(ext.Extension):
 
     def get_config_schema(self):
         schema = super(Extension, self).get_config_schema()
-        # TODO: Comment in and edit, or remove entirely
+        schema['server'] = config.String()
         #schema['username'] = config.String()
         #schema['password'] = config.Secret()
         return schema
@@ -35,3 +35,9 @@ class Extension(ext.Extension):
         from .backend import PlexBackend
         registry.add('backend', PlexBackend)
 
+    def validate_environment(self):
+        # Any manual checks of the environment to fail early.  Dependencies
+        # described by setup.py are checked by Mopidy, so you should not check
+        # their presence here.
+        
+        # TODO: ping server?
