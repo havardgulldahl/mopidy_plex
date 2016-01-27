@@ -7,7 +7,7 @@ import string
 import unicodedata
 from urlparse import parse_qs, urlparse
 
-from mopidy import backend
+from mopidy import backend, httpclient
 from mopidy.models import Album, SearchResult, Track
 
 import pykka
@@ -19,6 +19,16 @@ from plexapi.library import MusicSection
 import requests
 
 from mopidy_plex import logger
+
+def get_requests_session(proxy_config, user_agent):
+    proxy = httpclient.format_proxy(proxy_config)
+    full_user_agent = httpclient.format_user_agent(user_agent)
+
+    session = requests.Session()
+    session.proxies.update({'http': proxy, 'https': proxy})
+    session.headers.update({'user-agent': full_user_agent})
+
+    return session
 
 def resolve_track(track, stream=False):
     raise NotImplemented
@@ -146,12 +156,17 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.plex = PlexServer(config['server'])
         self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE])[0]
+        self.session = get_requests_session(
+                  proxy_config=config['proxy'],
+                  user_agent='%s/%s' % (
+                      mopidy_plex.Extension.dist_name,
+                      mopidy_plex.__version__))
 
 
 class PlexLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
         '''Lookup the given URIs.
-        Return type:    
+        Return type:
         list of mopidy.models.Track '''
 
         if 'plex:' in uri:
@@ -162,7 +177,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
     def __resolve(self, uri):
         '''Resolve plex uri to a track'''
-        t = self.backend.music.get(uri) 
+        t = self.backend.music.get(uri)
         return t
 
     def get_images(self, uris):
@@ -179,7 +194,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
     def search(self, query=None, uris=None, exact=False):
         '''Search the library for tracks where field contains values.
 
-        Parameters: 
+        Parameters:
         query (dict) – one or more queries to search for
         uris (list of string or None) – zero or more URI roots to limit the search to
         exact (bool) – if the search should use exact matching
@@ -188,7 +203,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         if not query:
             return
 
-        t = self.backend.music.search(uri) 
+        t = self.backend.music.search(uri)
         return t
 
         if 'uri' in query:
