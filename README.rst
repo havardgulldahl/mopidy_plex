@@ -39,7 +39,8 @@ Before starting Mopidy, you must add configuration for
 Mopidy-Plex to your Mopidy configuration file::
 
     [plex]
-    server = 192.168.0.105:32400
+    enabled = true
+    server = http://192.168.0.105:32400
 
 
 Project resources
