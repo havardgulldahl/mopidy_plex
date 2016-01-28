@@ -13,7 +13,7 @@ from mopidy.models import Album, SearchResult, Track
 import pykka
 
 from plexapi.server import PlexServer
-from plexapi import audio
+from plexapi import audio as plexaudio
 from plexapi.library import MusicSection
 
 import requests
