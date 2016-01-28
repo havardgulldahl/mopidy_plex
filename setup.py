@@ -31,7 +31,7 @@ setup(
     ],
     entry_points={
         'mopidy.ext': [
-            'mopidy_plex = mopidy_plex:Extension',
+            'plex = mopidy_plex:Extension',
         ],
     },
     classifiers=[
