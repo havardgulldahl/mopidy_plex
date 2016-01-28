@@ -99,6 +99,7 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.plex = PlexServer(config['plex']['server'])
         self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
+        logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
         self.session = get_requests_session(
                   proxy_config=config['proxy'],
                   user_agent='%s/%s' % (
@@ -228,6 +229,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         artists = tracks = albums = []
         for hit in self.backend.music.search(search_query):
+            logger.debug('Got plex hit from query "%s": %s', search_query, hit)
             if isinstance(hit, plexaudio.Artist): artists.append(hit)
             elif isinstance(hit, plexaudio.Track): tracks.append(hit)
             elif isinstance(hit, plexaudio.Album): albums.append(hit)
