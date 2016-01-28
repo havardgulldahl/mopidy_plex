@@ -235,7 +235,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
             elif isinstance(hit, plexaudio.Album): albums.append(wrap_album(hit))
 
 
-        logger.debug("Got results", artists, tracks, albums)
+        logger.debug("Got results: %s, %s, %s", artists, tracks, albums)
 
         return SearchResult(
             uri=search_uri,
