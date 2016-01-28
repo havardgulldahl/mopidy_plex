@@ -9,7 +9,7 @@ import urllib
 from urlparse import parse_qs, urlparse
 
 from mopidy import backend, httpclient
-from mopidy.models import Album, SearchResult, Track
+from mopidy.models import Artist, Album, SearchResult, Track
 
 import pykka
 
