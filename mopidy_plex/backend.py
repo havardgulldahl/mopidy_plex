@@ -227,7 +227,9 @@ class PlexLibraryProvider(backend.LibraryProvider):
                          )
 
 
-        artists = tracks = albums = []
+        artists = []
+        tracks = []
+        albums = []
         for hit in self.backend.music.search(search_query):
             logger.debug('Got plex hit from query "%s": %s', search_query, hit)
             if isinstance(hit, plexaudio.Artist): artists.append(wrap_artist(hit))
