@@ -30,67 +30,7 @@ def get_requests_session(proxy_config, user_agent):
 
     return session
 
-def resolve_track(track, stream=False):
-    raise NotImplemented
-    logger.debug("Resolving YouTube for track '%s'", track)
-    if hasattr(track, 'uri'):
-        return resolve_url(track.comment, stream)
-    else:
-        return resolve_url(track.split('.')[-1], stream)
 
-
-def safe_url(uri):
-    raise NotImplemented
-    valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
-    safe_uri = unicodedata.normalize(
-        'NFKD',
-        unicode(uri)
-    ).encode('ASCII', 'ignore')
-    return re.sub(
-        '\s+',
-        ' ',
-        ''.join(c for c in safe_uri if c in valid_chars)
-    ).strip()
-
-
-def resolve_url(url, stream=False):
-    raise NotImplemented
-    try:
-        video = pafy.new(url)
-        if not stream:
-            uri = '%s/%s.%s' % (
-                video_uri_prefix, safe_url(video.title), video.videoid)
-        else:
-            uri = video.getbestaudio()
-            if not uri:  # get video url
-                uri = video.getbest()
-            logger.debug('%s - %s %s %s' % (
-                video.title, uri.bitrate, uri.mediatype, uri.extension))
-            uri = uri.url
-        if not uri:
-            return
-    except Exception as e:
-        # Video is private or doesn't exist
-        logger.info(e.message)
-        return
-
-    images = []
-    if video.bigthumb is not None:
-        images.append(video.bigthumb)
-    if video.bigthumbhd is not None:
-        images.append(video.bigthumbhd)
-
-    track = Track(
-        name=video.title,
-        comment=video.videoid,
-        length=video.length * 1000,
-        album=Album(
-            name='YouTube',
-            images=images
-        ),
-        uri=uri
-    )
-    return track
 
 
 def search_youtube(q):
@@ -144,6 +84,7 @@ def resolve_playlist(url):
     return [item for item in playlist if item]
 
 
+
 class PlexBackend(pykka.ThreadingActor, backend.Backend):
     def __init__(self, config, audio):
         super(PlexBackend, self).__init__(audio=audio)
@@ -162,6 +103,10 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
                       mopidy_plex.Extension.dist_name,
                       mopidy_plex.__version__))
 
+    def resolve_uri(self, uri_path):
+        'Get a leaf uri and complete it'
+        return self.plex.url(uri_path)
+
 
 class PlexLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
@@ -177,8 +122,19 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
     def __resolve(self, uri):
         '''Resolve plex uri to a track'''
-        t = self.backend.music.get(uri)
-        return t
+        elem = self.backend.server.query(uri)[0]
+        plextrack = plexaudio.build_item(self.backend.server, elem, uri)
+        return Track(uri=plextrack.key,
+                     name=plextrack.title,
+                     artists=[Artist(uri=self.resolve_uri(plextrack.grandparentKey),
+                                     name=plextrack.grandparentTitle)],
+                     album=Album(uri=self.resolve_uri(plextrack.parentKey),
+                                 name=plextrack.parentTitle),
+                     track_no=plextrack.index,
+                     length=plextrack.duration,
+                     # TODO: bitrate=searchhit.media.bitrate,
+                     comment=plextrack.summary
+                    )
 
     def get_images(self, uris):
         '''Lookup the images for the given URIs
@@ -198,15 +154,21 @@ class PlexLibraryProvider(backend.LibraryProvider):
         query (dict) – one or more queries to search for
         uris (list of string or None) – zero or more URI roots to limit the search to
         exact (bool) – if the search should use exact matching
+
+        Returns mopidy.models.SearchResult, which has these properties
+            uri (string) – search result URI
+            tracks (list of Track elements) – matching tracks
+            artists (list of Artist elements) – matching artists
+            albums (list of Album elements) – matching albums
         '''
 
+        logger.info("Searching Plex for track '%s'", query)
         if not query:
             return
 
-        t = self.backend.music.search(uri)
-        return t
 
-        if 'uri' in query:
+        if 'uri' in query: # TODO add uri limiting
+
             search_query = ''.join(query['uri'])
             url = urlparse(search_query)
             if 'youtube.com' in url.netloc:
@@ -217,27 +179,129 @@ class PlexLibraryProvider(backend.LibraryProvider):
                         tracks=resolve_playlist(req.get('list')[0])
                     )
                 else:
-                    logger.info(
-                        "Resolving YouTube for track '%s'", search_query)
                     return SearchResult(
                         uri=search_uri,
                         tracks=[t for t in [resolve_url(search_query)] if t]
                     )
         else:
             search_query = ' '.join(query.values()[0])
-            logger.info("Searching YouTube for query '%s'", search_query)
-            return SearchResult(
-                uri=search_uri,
-                tracks=search_youtube(search_query)
-            )
+
+        logger.info("Searching Plex with query '%s'", search_query)
+
+
+        def wrap_artist(searchhit):
+            '''Wrap a plex search result in mopidy.model.artist'''
+            return Artist(uri=searchhit.key,
+                          name=searchhit.title)
+
+        def wrap_album(searchhit):
+            '''Wrap a plex search result in mopidy.model.album'''
+            return Album(uri=searchhit.key,
+                         name=searchhit.title,
+                         artists=[Artist(uri=self.resolve_uri(searchhit.parentKey),
+                                         name=searchhit.parentTitle)],
+                         num_tracks=searchhit.leafCount,
+                         num_discs=None,
+                         date=searchhit.year,
+                         images=[self.resolve_uri(searchhit.thumb),
+                                 self.resolve_uri(searchhit.art)]
+                         )
+
+        def wrap_track(searchhit):
+            '''Wrap a plex search result in mopidy.model.track'''
+            return Track(uri=searchhit.key,
+                         name=searchhit.title,
+                         artists=[Artist(uri=self.resolve_uri(searchhit.grandparentKey),
+                                         name=searchhit.grandparentTitle)],
+                         album=Album(uri=self.resolve_uri(searchhit.parentKey),
+                                      name=searchhit.parentTitle),
+                         track_no=searchhit.index,
+                         length=searchhit.duration,
+                         # TODO: bitrate=searchhit.media.bitrate,
+                         comment=searchhit.summary
+                         )
+
+
+        artists, tracks, albums = []
+        for hit in self.backend.music.search(search_query):
+            if isinstance(hit, plexaudio.Artist): artists.append(hit)
+            elif isinstance(hit, plexaudio.Track): tracks.append(hit)
+            elif isinstance(hit, plexaudio.Album): albums.append(hit)
+
+        return SearchResult(
+            uri=search_uri,
+            tracks=tracks,
+            artists=artists,
+            albums=albums
+        )
 
 
 class PlexPlaybackProvider(backend.PlaybackProvider):
 
     def translate_uri(self, uri):
+        '''Convert custom URI scheme to real playable URI.
+
+        MAY be reimplemented by subclass.
+
+        This is very likely the only thing you need to override as a backend author. Typically this is where you convert any Mopidy specific URI to a real URI and then return it. If you can’t convert the URI just return None.
+
+        Parameters:	uri (string) – the URI to translate
+        Return type:	string or None if the URI could not be translated'''
+
+        logger.info("Playback.translate_uri Plex with uri '%s'", uri)
+
+        elem = self.backend.server.query(uri)[0]
+        return plexaudio.build_item(self.backend.server, elem, uri).getStreamUrl()
+
+
+    def _get_time_position(self):
+        '''Get the current time position in milliseconds.
+
+        MAY be reimplemented by subclass.
+
+        Return type:	int'''
         raise NotImplemented
-        track = resolve_track(uri, True)
-        if track is not None:
-            return track.uri
-        else:
-            return None
+
+
+    def _pause(self):
+        '''Pause playback.
+
+        MAY be reimplemented by subclass.
+
+        Return type:	True if successful, else False'''
+        raise NotImplemented
+
+    def _play(self):
+        '''Start playback.
+
+        MAY be reimplemented by subclass.
+
+        Return type:	True if successful, else False'''
+        raise NotImplemented
+
+    def _resume(self):
+        '''Resume playback at the same time position playback was paused.
+
+        MAY be reimplemented by subclass.
+
+        Return type:	True if successful, else False'''
+        raise NotImplemented
+
+    def _seek(self, time_position):
+        '''Seek to a given time position.
+
+        MAY be reimplemented by subclass.
+
+        Parameters:	time_position (int) – time position in milliseconds
+        Return type:	True if successful, else False'''
+        raise NotImplemented
+
+    def _stop(self):
+        '''Stop playback.
+
+        MAY be reimplemented by subclass.
+
+        Should not be used for tracking if tracks have been played or when we are done playing them.
+
+        Return type:	True if successful, else False'''
+        raise NotImplemented
