@@ -5,6 +5,7 @@ from __future__ import unicode_literals
 import re
 import string
 import unicodedata
+import urllib
 from urlparse import parse_qs, urlparse
 
 from mopidy import backend, httpclient
