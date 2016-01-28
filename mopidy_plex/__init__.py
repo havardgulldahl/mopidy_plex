@@ -39,5 +39,6 @@ class Extension(ext.Extension):
         # Any manual checks of the environment to fail early.  Dependencies
         # described by setup.py are checked by Mopidy, so you should not check
         # their presence here.
-        
+
         # TODO: ping server?
+        return True
