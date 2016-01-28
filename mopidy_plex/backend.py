@@ -18,6 +18,7 @@ from plexapi.library import MusicSection
 
 import requests
 
+import mopidy_plex
 from mopidy_plex import logger
 
 def get_requests_session(proxy_config, user_agent):
