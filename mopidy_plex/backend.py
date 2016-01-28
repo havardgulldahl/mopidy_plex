@@ -230,9 +230,12 @@ class PlexLibraryProvider(backend.LibraryProvider):
         artists = tracks = albums = []
         for hit in self.backend.music.search(search_query):
             logger.debug('Got plex hit from query "%s": %s', search_query, hit)
-            if isinstance(hit, plexaudio.Artist): artists.append(hit)
-            elif isinstance(hit, plexaudio.Track): tracks.append(hit)
-            elif isinstance(hit, plexaudio.Album): albums.append(hit)
+            if isinstance(hit, plexaudio.Artist): artists.append(wrap_artist(hit))
+            elif isinstance(hit, plexaudio.Track): tracks.append(wrap_track(hit))
+            elif isinstance(hit, plexaudio.Album): albums.append(wrap_album(hit))
+
+
+        logger.debug("Got results", artists, tracks, albums)
 
         return SearchResult(
             uri=search_uri,
