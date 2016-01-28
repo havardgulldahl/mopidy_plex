@@ -95,7 +95,7 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.uri_schemes = ['plex', ]
 
-        self.plex = PlexServer(config['server'])
+        self.plex = PlexServer(config['plex']['server'])
         self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
         self.session = get_requests_session(
                   proxy_config=config['proxy'],
