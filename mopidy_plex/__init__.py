@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class Extension(ext.Extension):
 
     dist_name = 'Mopidy-Plex'
-    ext_name = 'mopidy_plex'
+    ext_name = 'plex'
     version = __version__
 
     def get_default_config(self):
@@ -41,4 +41,4 @@ class Extension(ext.Extension):
         # their presence here.
 
         # TODO: ping server?
-        return True
+        pass
