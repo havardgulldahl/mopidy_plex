@@ -164,8 +164,9 @@ class PlexLibraryProvider(backend.LibraryProvider):
         '''
 
         logger.info("Searching Plex for track '%s'", query)
-        if not query:
-            return
+        if query is None:
+            logger.debug('Ignored search without query')
+            return models.SearchResult(uri='plex:search')
 
 
         if 'uri' in query: # TODO add uri limiting
@@ -187,6 +188,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         else:
             search_query = ' '.join(query.values()[0])
 
+        search_uri = 'plex:search:%s' % urllib.quote(search_query.encode('utf-8'))
         logger.info("Searching Plex with query '%s'", search_query)
 
 
@@ -223,7 +225,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
                          )
 
 
-        artists, tracks, albums = []
+        artists = tracks = albums = []
         for hit in self.backend.music.search(search_query):
             if isinstance(hit, plexaudio.Artist): artists.append(hit)
             elif isinstance(hit, plexaudio.Track): tracks.append(hit)
