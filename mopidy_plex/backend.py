@@ -97,14 +97,14 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.uri_schemes = ['plex', ]
 
-        self.plex = PlexServer(config['plex']['server'])
-        self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
-        logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
         self.session = get_requests_session(
                   proxy_config=config['proxy'],
                   user_agent='%s/%s' % (
                       mopidy_plex.Extension.dist_name,
                       mopidy_plex.__version__))
+        self.plex = PlexServer(config['plex']['server'], session=self.session)
+        self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
+        logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
 
     def resolve_uri(self, uri_path):
         'Get a leaf uri and complete it to a mopidy plex uri'
@@ -156,7 +156,16 @@ class PlexLibraryProvider(backend.LibraryProvider):
         '''Search the library for tracks where field contains values.
 
         Parameters:
-        query (dict) – one or more queries to search for
+        query (dict) – one or more queries to search for - the dict's keys being:
+              {
+                  'any': *, # this is what we get without explicit modifiers
+                  'albumartist': *,
+                  'date': *,
+                  'track_name': *,
+                  'track_number': *,
+              }
+
+
         uris (list of string or None) – zero or more URI roots to limit the search to
         exact (bool) – if the search should use exact matching
 
@@ -198,7 +207,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         def wrap_artist(searchhit):
             '''Wrap a plex search result in mopidy.model.artist'''
-            return Artist(uri=searchhit.ratingkey,
+            return Artist(uri=searchhit.ratingKey,
                           name=searchhit.title)
 
         def wrap_album(searchhit):
