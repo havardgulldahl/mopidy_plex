@@ -106,12 +106,11 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
         self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
         logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
 
-    def resolve_uri(self, uri_path):
+    def resolve_uri(self, uri_path, prefix='plex'):
         'Get a leaf uri and complete it to a mopidy plex uri'
         if not uri_path.startswith('/library/metadata/'):
             uri_path = '/library/metadata/' + uri_path
-        return 'plex:%s' % uri_path
-
+        return '{}:{}'.format(prefix, uri_path)
 
 class PlexLibraryProvider(backend.LibraryProvider):
     def lookup(self, uri):
@@ -207,29 +206,29 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         def wrap_artist(searchhit):
             '''Wrap a plex search result in mopidy.model.artist'''
-            return Artist(uri=searchhit.ratingKey,
+            return Artist(uri=self.backend.resolve_uri(searchhit.ratingKey, 'plex:artist'),
                           name=searchhit.title)
 
         def wrap_album(searchhit):
             '''Wrap a plex search result in mopidy.model.album'''
             return Album(uri=searchhit.key,
                          name=searchhit.title,
-                         artists=[Artist(uri=self.backend.resolve_uri(searchhit.parentKey),
+                         artists=[Artist(uri=self.backend.resolve_uri(searchhit.parentKey, 'plex:album'),
                                          name=searchhit.parentTitle)],
                          num_tracks=searchhit.leafCount,
                          num_discs=None,
                          date=searchhit.year,
-                         images=[self.backend.resolve_uri(searchhit.thumb),
-                                 self.backend.resolve_uri(searchhit.art)]
+                         images=[self.backend.resolve_uri(searchhit.thumb, 'plex:thumb'),
+                                 self.backend.resolve_uri(searchhit.art, 'plex:thumb')]
                          )
 
         def wrap_track(searchhit):
             '''Wrap a plex search result in mopidy.model.track'''
             return Track(uri=searchhit.key,
                          name=searchhit.title,
-                         artists=[Artist(uri=self.resolve_uri(searchhit.grandparentKey),
+                         artists=[Artist(uri=self.resolve_uri(searchhit.grandparentKey, 'plex:artist'),
                                          name=searchhit.grandparentTitle)],
-                         album=Album(uri=self.resolve_uri(searchhit.parentKey),
+                         album=Album(uri=self.resolve_uri(searchhit.parentKey, 'plex:album'),
                                       name=searchhit.parentTitle),
                          track_no=searchhit.index,
                          length=searchhit.duration,
