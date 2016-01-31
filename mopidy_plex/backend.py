@@ -9,7 +9,7 @@ import urllib
 from urlparse import parse_qs, urlparse
 
 from mopidy import backend, httpclient
-from mopidy.models import Artist, Album, SearchResult, Track
+from mopidy.models import Artist, Album, SearchResult, Track, Ref
 
 import pykka
 
@@ -106,33 +106,145 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
         self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
         logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
 
-    def resolve_uri(self, uri_path, prefix='plex'):
+    def plex_uri(self, uri_path, prefix='plex'):
         'Get a leaf uri and complete it to a mopidy plex uri'
         if not uri_path.startswith('/library/metadata/'):
             uri_path = '/library/metadata/' + uri_path
+
+        if uri_path.startswith('/library/metadata/'):
+            uri_path = uri_path[len('/library/metadata/'):]
         return '{}:{}'.format(prefix, uri_path)
 
+    def resolve_uri(self, uri_path):
+        'Get a leaf uri and return full address to plex server'
+        if not uri_path.startswith('/library/metadata/'):
+            uri_path = '/library/metadata/' + uri_path
+        return self.plex.url(uri_path)
+
 class PlexLibraryProvider(backend.LibraryProvider):
+    root_directory = Ref.directory(uri='plex:directory', name='Plex Music')
+
+
+    def __init__(self, *args, **kwargs):
+        super(PlexLibraryProvider, self).__init__(*args, **kwargs)
+        self._root = []
+        self._root.append(Ref.directory(uri='plex:album', name='Albums'))
+        self._root.append(Ref.directory(uri='plex:artist', name='Artists'))
+
+    def _item_ref(self, item, item_type):
+        if item_type == 'track':
+            _ref = Ref.track
+        else:
+            _ref = Ref.directory
+        return _ref(uri=self.backend.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
+                    name=item.title)
+
+      def browse(self, uri):
+        logger.debug('browse: %s', str(uri))
+        if not uri:
+            return []
+        if uri == self.root_directory.uri:
+            return self._root
+        parts = uri.split(':')
+
+        # albums
+        if uri == 'plex:album':
+            logger.debug('self._browse_albums()')
+            return [self._item_ref(item, 'album') for item in
+                      plexaudio.list_items(self.backend.plex, '/library/sections/4/albums')]
+
+        # a single album
+        # uri == 'plex:album:album_id'
+        if len(parts) == 3 and parts[1] == 'album':
+            logger.debug('self._browse_album(uri)')
+            album_id = parts[2]
+            return [self._item_ref(item, 'track') for item in
+                      plexaudio.list_items(self.backend.plex, '/library/metadata/{}/children'.format(album_id))]
+
+        # artists
+        if uri == 'plex:artist':
+            logger.debug('self._browse_artists()')
+            return [self._item_ref(item, 'artist') for item in
+                      plexaudio.list_items(self.backend.plex, '/library/sections/4/all')]
+
+        # a single artist
+        # uri == 'plex:artist:artist_id'
+        if len(parts) == 3 and parts[1] == 'artist':
+            logger.debug('self._browse_artist(uri)')
+            artist_id = parts[2]
+            # get albums and tracks
+            ret = []
+            for item in plexaudio.list_items(self.backend.plex, '/library/metadata/{}/children'.format(artist_id)):
+                ret.append(self._item_ref(item, 'album'))
+            for item in plexaudio.list_items(self.backend.plex, '/library/metadata/{}/allLeaves'.format(artist_id)):
+                ret.append(self._item_ref(item, 'track'))
+            return ret
+
+        # all tracks of a single artist
+        # uri == 'plex:artist:artist_id:all'
+        if len(parts) == 4 and parts[1] == 'artist' and parts[3] == 'all':
+            logger.debug('self._browse_artist_all_tracks(uri)')
+            artist_id = parts[2]
+            return [self._item_ref(item, 'track') for item in
+                      plexaudio.list_items(self.backend.plex, '/library/metadata/{}/allLeaves'.format(artist_id))]
+
+        logger.debug('Unknown uri for browse request: %s', uri)
+
+        return []
+
+    def wrap_track(self, searchhit):
+        '''Wrap a plex search result in mopidy.model.track'''
+        return Track(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:track'),
+                        name=searchhit.title,
+                        artists=[Artist(uri=self.backend.plex_uri(searchhit.grandparentKey, 'plex:artist'),
+                                        name=searchhit.grandparentTitle)],
+                        album=Album(uri=self.backend.plex_uri(searchhit.parentKey, 'plex:album'),
+                                    name=searchhit.parentTitle),
+                        track_no=None, #searchhit.index,
+                        length=searchhit.duration,
+                        # TODO: bitrate=searchhit.media.bitrate,
+                        comment=searchhit.summary
+                        )
+
+
     def lookup(self, uri):
         '''Lookup the given URIs.
         Return type:
         list of mopidy.models.Track '''
 
-        if 'plex:' in uri:
-            track = uri.replace('plex:', '')
+        logger.info("Lookup Plex uri '%s'", uri)
 
-        return [item for item in [self.__resolve(uri)] if item]
+        parts = uri.split(':')
+
+        if uri.startswith('plex:artist:'):
+            # get all tracks for artist
+            item_id = parts[2]
+            plex_uri = '/library/metadata/{}/allLeaves'.format(item_id)
+        elif uri.startswith('plex:album:'):
+            # get all tracks for album
+            item_id = parts[2]
+            plex_uri = '/library/metadata/{}/children'.format(item_id)
+        elif uri.startswith('plex:track:'):
+            # get track
+            item_id = parts[2]
+            plex_uri = '/library/metadata/{}'.format(item_id)
+
+        ret = []
+        for item in self.backend.plex.query(plex_uri):
+            plextrack = plexaudio.build_item(self.backend.plex, item, '/library/metadata/{}'.format(item.attrib['ratingKey']))
+            ret.append(self.wrap_track(plextrack))
+        return ret
 
 
     def __resolve(self, uri):
         '''Resolve plex uri to a track'''
         elem = self.backend.server.query(uri)[0]
         plextrack = plexaudio.build_item(self.backend.server, elem, uri)
-        return Track(uri=plextrack.key,
+        return Track(uri=self.backend.plex_uri(plextrack.ratingKey),
                      name=plextrack.title,
-                     artists=[Artist(uri=self.backend.resolve_uri(plextrack.grandparentKey),
+                     artists=[Artist(uri=self.backend.plex_uri(plextrack.grandparentKey),
                                      name=plextrack.grandparentTitle)],
-                     album=Album(uri=self.backend.resolve_uri(plextrack.parentKey),
+                     album=Album(uri=self.backend.plex_uri(plextrack.parentKey),
                                  name=plextrack.parentTitle),
                      track_no=plextrack.index,
                      length=plextrack.duration,
@@ -206,29 +318,29 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         def wrap_artist(searchhit):
             '''Wrap a plex search result in mopidy.model.artist'''
-            return Artist(uri=self.backend.resolve_uri(searchhit.ratingKey, 'plex:artist'),
+            return Artist(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:artist'),
                           name=searchhit.title)
 
         def wrap_album(searchhit):
             '''Wrap a plex search result in mopidy.model.album'''
-            return Album(uri=searchhit.key,
+            return Album(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:album'),
                          name=searchhit.title,
-                         artists=[Artist(uri=self.backend.resolve_uri(searchhit.parentKey, 'plex:album'),
+                         artists=[Artist(uri=self.backend.plex_uri(searchhit.parentKey, 'plex:artist'),
                                          name=searchhit.parentTitle)],
                          num_tracks=searchhit.leafCount,
                          num_discs=None,
-                         date=searchhit.year,
-                         images=[self.backend.resolve_uri(searchhit.thumb, 'plex:thumb'),
-                                 self.backend.resolve_uri(searchhit.art, 'plex:thumb')]
-                         )
+                           date=str(searchhit.year),
+                           images=[self.backend.resolve_uri(searchhit.thumb),
+                                   self.backend.resolve_uri(searchhit.art)]
+                           )
 
         def wrap_track(searchhit):
             '''Wrap a plex search result in mopidy.model.track'''
-            return Track(uri=searchhit.key,
+            return Track(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:track'),
                          name=searchhit.title,
-                         artists=[Artist(uri=self.resolve_uri(searchhit.grandparentKey, 'plex:artist'),
+                         artists=[Artist(uri=self.plex_uri(searchhit.grandparentKey, 'plex:artist'),
                                          name=searchhit.grandparentTitle)],
-                         album=Album(uri=self.resolve_uri(searchhit.parentKey, 'plex:album'),
+                         album=Album(uri=self.plex_uri(searchhit.parentKey, 'plex:album'),
                                       name=searchhit.parentTitle),
                          track_no=searchhit.index,
                          length=searchhit.duration,
@@ -264,15 +376,23 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
 
         MAY be reimplemented by subclass.
 
-        This is very likely the only thing you need to override as a backend author. Typically this is where you convert any Mopidy specific URI to a real URI and then return it. If you can’t convert the URI just return None.
+        This is very likely the only thing you need to override as a backend
+        author. Typically this is where you convert any Mopidy specific URI to a real
+        URI and then return it. If you can’t convert the URI just return None.
 
-        Parameters:	uri (string) – the URI to translate
-        Return type:	string or None if the URI could not be translated'''
+        Parameters: uri (string) – the URI to translate
+        Return type:    string or None if the URI could not be translated'''
 
-        logger.info("Playback.translate_uri Plex with uri '%s'", uri)
+        logger.debug("Playback.translate_uri Plex with uri '%s'", uri)
 
-        elem = self.backend.server.query(uri)[0]
-        return plexaudio.build_item(self.backend.server, elem, uri).getStreamUrl()
+        rx = re.compile(r'plex:track:(?P<track_id>\d+)')
+        rm = rx.match(uri)
+        if rm is None: # uri unknown
+            logger.info('Unkown uri: %s', uri)
+            return None
+        elem = plexaudio.find_key(self.backend.plex, rm.group('track_id'))
+        logger.debug('returning stream for elem %r', elem)
+        return elem.getStreamUrl()
 
 
     def _get_time_position(self):
