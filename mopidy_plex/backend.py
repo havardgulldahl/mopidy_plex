@@ -206,7 +206,6 @@ class PlexLibraryProvider(backend.LibraryProvider):
                         comment=searchhit.summary
                         )
 
-
     def lookup(self, uri):
         '''Lookup the given URIs.
         Return type:
@@ -235,22 +234,6 @@ class PlexLibraryProvider(backend.LibraryProvider):
             ret.append(self.wrap_track(plextrack))
         return ret
 
-
-    def __resolve(self, uri):
-        '''Resolve plex uri to a track'''
-        elem = self.backend.server.query(uri)[0]
-        plextrack = plexaudio.build_item(self.backend.server, elem, uri)
-        return Track(uri=self.backend.plex_uri(plextrack.ratingKey),
-                     name=plextrack.title,
-                     artists=[Artist(uri=self.backend.plex_uri(plextrack.grandparentKey),
-                                     name=plextrack.grandparentTitle)],
-                     album=Album(uri=self.backend.plex_uri(plextrack.parentKey),
-                                 name=plextrack.parentTitle),
-                     track_no=plextrack.index,
-                     length=plextrack.duration,
-                     # TODO: bitrate=searchhit.media.bitrate,
-                     comment=plextrack.summary
-                    )
 
     def get_images(self, uris):
         '''Lookup the images for the given URIs
