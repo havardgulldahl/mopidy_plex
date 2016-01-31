@@ -42,3 +42,12 @@ class Extension(ext.Extension):
 
         # TODO: ping server?
         pass
+
+    def validate_config(self, config):  # no_coverage
+        if not config.getboolean('plex', 'enabled'):
+            return
+        if not config.get('plex', 'server'):
+            raise ExtensionError(
+                'In order to use the Plex Music extension you must provide a '
+                'server address. For more information refer to '
+                'https://github.com/havardgulldahl/mopidy-plex/')
