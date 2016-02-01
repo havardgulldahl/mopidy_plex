@@ -139,7 +139,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         return _ref(uri=self.backend.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
                     name=item.title)
 
-      def browse(self, uri):
+    def browse(self, uri):
         logger.debug('browse: %s', str(uri))
         if not uri:
             return []
