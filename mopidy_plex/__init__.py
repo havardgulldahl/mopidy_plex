@@ -5,7 +5,8 @@ import os
 
 from mopidy import config, ext
 
-__version__ = '0.1.0'
+__version__ = '0.1.0b'
+__author__ = 'havard@gulldahl.no'
 
 # TODO: If you need to log, use loggers named after the current Python module
 logger = logging.getLogger(__name__)
