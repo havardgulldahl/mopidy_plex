@@ -32,6 +32,20 @@ Or, if available, install the Debian/Ubuntu package from `apt.mopidy.com
 <http://apt.mopidy.com/>`_.
 
 
+And you need the `python-plexapi` module as well::
+
+    pip install plexapi
+
+
+Extra setup hassle
+-------------------
+
+**Please note** that you need the `python-plexapi` package _with_audio/music_support_!
+As of 2016-02-02, that functionality is not yet upstream, so you need to install it from
+https://github.com/havardgulldahl/python-plexapi for now.
+
+
+
 Configuration
 =============
 
@@ -64,4 +78,12 @@ Changelog
 v0.1.0 (UNRELEASED)
 ----------------------------------------
 
-- Initial release.
+
+v0.1.0b (2016-02-02)
+----------------------------------------
+
+- Initial beta release.
+- Listing and searching Plex Server content works.
+- Playing audio works.
+- Please `file bugs <https://github.com/havardgulldahl/mopidy-plex/issues>`.
+
