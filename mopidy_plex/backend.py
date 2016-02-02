@@ -33,60 +33,6 @@ def get_requests_session(proxy_config, user_agent):
     return session
 
 
-
-
-def search_youtube(q):
-    raise NotImplemented
-    query = {
-        'part': 'id',
-        'maxResults': 15,
-        'type': 'video',
-        'q': q,
-        'key': yt_key
-    }
-    result = session.get(yt_api_endpoint+'search', params=query)
-    data = result.json()
-
-    resolve_pool = ThreadPool(processes=16)
-    playlist = [item['id']['videoId'] for item in data['items']]
-
-    playlist = resolve_pool.map(resolve_url, playlist)
-    resolve_pool.close()
-    return [item for item in playlist if item]
-
-
-def resolve_playlist(url):
-    raise NotImplemented
-    resolve_pool = ThreadPool(processes=16)
-    logger.info("Resolving YouTube-Playlist '%s'", url)
-    playlist = []
-
-    page = 'first'
-    while page:
-        params = {
-            'playlistId': url,
-            'maxResults': 50,
-            'key': yt_key,
-            'part': 'contentDetails'
-        }
-        if page and page != "first":
-            logger.debug("Get YouTube-Playlist '%s' page %s", url, page)
-            params['pageToken'] = page
-
-        result = session.get(yt_api_endpoint+'playlistItems', params=params)
-        data = result.json()
-        page = data.get('nextPageToken')
-
-        for item in data["items"]:
-            video_id = item['contentDetails']['videoId']
-            playlist.append(video_id)
-
-    playlist = resolve_pool.map(resolve_url, playlist)
-    resolve_pool.close()
-    return [item for item in playlist if item]
-
-
-
 class PlexBackend(pykka.ThreadingActor, backend.Backend):
     def __init__(self, config, audio):
         super(PlexBackend, self).__init__(audio=audio)
