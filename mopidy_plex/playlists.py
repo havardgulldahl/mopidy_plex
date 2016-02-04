@@ -2,6 +2,8 @@
 
 from __future__ import unicode_literals
 
+import re
+
 import pykka
 from mopidy import backend
 from mopidy.models import Playlist, Ref
@@ -46,7 +48,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
 
         If a playlist with the given uri doesn’t exist, it returns None.'''
         logger.debug('Playlist: get_items %r', uri)
-        rx = re.compile(r'plex:playlist:(?P<plid>?\d+)').match(uri)
+        rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
         if rx is None:
             return None
 
