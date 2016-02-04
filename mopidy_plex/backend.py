@@ -16,6 +16,7 @@ import pykka
 from plexapi.server import PlexServer
 from plexapi import audio as plexaudio
 from plexapi.library import MusicSection
+from .playlist import PlexPlaylistsProvider
 
 import requests
 
@@ -39,7 +40,7 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
         self.config = config
         self.library = PlexLibraryProvider(backend=self)
         self.playback = PlexPlaybackProvider(audio=audio, backend=self)
-        self.playlists = None # TODO: Support plex playlists
+        self.playlists = PlexPlaylistsProvider(backend=self)
 
         self.uri_schemes = ['plex', ]
 
