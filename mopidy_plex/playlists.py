@@ -62,7 +62,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
             return Ref.track(uri='plex:track:{}'.format(item.ratingKey), name=item.title)
 
         return [wrap_ref(item) for item in
-                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.groups('plid')))]
+                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.group('plid')))]
 
 
     def lookup(self, uri):
@@ -79,10 +79,10 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         _rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
         if _rx is None:
             return None
-        plexlist = plexplaylist.list_items(self.plex, '/playlists/{:s}'.format(_rx.groups('plid')))[0]
+        plexlist = plexplaylist.list_items(self.plex, '/playlists/{:s}'.format(_rx.group('plid')))[0]
         PL = Playlist(uri=uri,
                       name=plexlist.title,
-                      tracks=[wrap_track(_t, self.plex.plex_uri) for _t in plexlist.tracks()],
+                      tracks=[wrap_track(_t, self.backend.plex_uri) for _t in plexlist.items()],
                       last_modified=None, # TODO: find this value
                      )
         return PL

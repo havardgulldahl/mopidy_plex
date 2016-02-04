@@ -28,7 +28,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
             _ref = Ref.track
         else:
             _ref = Ref.directory
-        return _ref(uri=self.plex.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
+        return _ref(uri=self.backend.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
                     name=item.title)
 
     def browse(self, uri):
