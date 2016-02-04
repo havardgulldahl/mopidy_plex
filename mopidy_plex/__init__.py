@@ -3,7 +3,7 @@ from __future__ import unicode_literals
 import logging
 import os
 
-from mopidy import config, ext
+from mopidy import config, ext, exceptions
 
 __version__ = '0.1.0b'
 __author__ = 'havard@gulldahl.no'
@@ -48,7 +48,7 @@ class Extension(ext.Extension):
         if not config.getboolean('plex', 'enabled'):
             return
         if not config.get('plex', 'server'):
-            raise ExtensionError(
+            raise exceptions.ExtensionError(
                 'In order to use the Plex Music extension you must provide a '
                 'server address. For more information refer to '
                 'https://github.com/havardgulldahl/mopidy-plex/')

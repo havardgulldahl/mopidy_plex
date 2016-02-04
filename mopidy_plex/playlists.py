@@ -4,11 +4,11 @@ from __future__ import unicode_literals
 
 import re
 
-import pykka
 from mopidy import backend
-from mopidy.models import Playlist, Ref
+from mopidy.models import Ref
 
-import mopidy_plex
+from plexapi import audio as plexaudio
+
 from mopidy_plex import logger
 
 
@@ -24,9 +24,9 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         Returns a list of `mopidy.models.Ref` objects referring to the playlists.
         In other words, no information about the playlists’ content is given.'''
         logger.debug('Playlist: as_list')
-        for l in self.plex.playlists(playlisttype='audio'):
-            yield Ref(uri='plex:playlist:{}'.format(l.ratingKey),
-                      name=l.title)
+        for playlist in self.plex.playlists(playlisttype='audio'):
+            yield Ref(uri='plex:playlist:{}'.format(playlist.ratingKey),
+                      name=playlist.title)
 
     def create(self, name):
         '''Create a new empty playlist with the given name.
@@ -48,12 +48,15 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
 
         If a playlist with the given uri doesn’t exist, it returns None.'''
         logger.debug('Playlist: get_items %r', uri)
-        rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
-        if rx is None:
+        _rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
+        if _rx is None:
             return None
 
-        return [Ref.track(uri='plex:track:{}'.format(item.ratingKey), name=item.title for item in
-                          plexaudio.list_items(self.plex, '/playlists/{}/items'.format(rx.groups('plid'))))]
+        def wrap_track(item):
+            return Ref.track(uri='plex:track:{}'.format(item.ratingKey), name=item.title)
+
+        return [wrap_track(item) for item in
+                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.groups('plid')))]
 
 
     def lookup(self, uri):

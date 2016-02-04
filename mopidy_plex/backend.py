@@ -2,22 +2,17 @@
 
 from __future__ import unicode_literals
 
-import re
-import string
-import unicodedata
-
 from mopidy import backend, httpclient
 
 import pykka
+import requests
+
 
 from plexapi.server import PlexServer
-from plexapi import audio as plexaudio
 from plexapi.library import MusicSection
-from .playlist import PlexPlaylistsProvider
+from .playlists import PlexPlaylistsProvider
 from .playback import PlexPlaybackProvider
 from .library import PlexLibraryProvider
-
-import requests
 
 import mopidy_plex
 from mopidy_plex import logger
@@ -43,17 +38,22 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
 
         self.uri_schemes = ['plex', ]
 
-        self.session = get_requests_session(
-                  proxy_config=config['proxy'],
-                  user_agent='%s/%s' % (
-                      mopidy_plex.Extension.dist_name,
-                      mopidy_plex.__version__))
+        self.session = get_requests_session(proxy_config=config['proxy'],
+                                            user_agent='%s/%s' % (mopidy_plex.Extension.dist_name,
+                                                                  mopidy_plex.__version__)
+                                           )
         self.plex = PlexServer(config['plex']['server'], session=self.session)
-        self.music = [s for s in self.plex.library.sections() if s.TYPE==MusicSection.TYPE][0]
+        self.music = [s for s in self.plex.library.sections() if s.TYPE == MusicSection.TYPE][0]
         logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
 
     def plex_uri(self, uri_path, prefix='plex'):
-        'Get a leaf uri and complete it to a mopidy plex uri'
+        '''Get a leaf uri and complete it to a mopidy plex uri.
+
+        E.g. plex:artist:3434
+             plex:track:2323
+             plex:album:2323
+             plex:playlist:3432
+        '''
         if not uri_path.startswith('/library/metadata/'):
             uri_path = '/library/metadata/' + uri_path
 

@@ -4,16 +4,11 @@ from __future__ import unicode_literals
 
 import re
 
-import pykka
 from mopidy import backend
-from mopidy.models import Playlist, Ref
 
 from plexapi import audio as plexaudio
 
-import mopidy_plex
 from mopidy_plex import logger
-
-
 
 class PlexPlaybackProvider(backend.PlaybackProvider):
 
@@ -31,12 +26,11 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
 
         logger.debug("Playback.translate_uri Plex with uri '%s'", uri)
 
-        rx = re.compile(r'plex:track:(?P<track_id>\d+)')
-        rm = rx.match(uri)
-        if rm is None: # uri unknown
+        _rx = re.compile(r'plex:track:(?P<track_id>\d+)').match(uri)
+        if _rx is None: # uri unknown
             logger.info('Unkown uri: %s', uri)
             return None
-        elem = plexaudio.find_key(self.backend.plex, rm.group('track_id'))
+        elem = plexaudio.find_key(self.backend.plex, _rx.group('track_id'))
         logger.debug('returning stream for elem %r', elem)
         return elem.getStreamUrl()
 
@@ -47,7 +41,7 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         MAY be reimplemented by subclass.
 
         Return type:	int'''
-        raise NotImplemented
+        raise NotImplementedError
 
 
     def _pause(self):
@@ -56,7 +50,7 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         MAY be reimplemented by subclass.
 
         Return type:	True if successful, else False'''
-        raise NotImplemented
+        raise NotImplementedError
 
     def _play(self):
         '''Start playback.
@@ -64,7 +58,7 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         MAY be reimplemented by subclass.
 
         Return type:	True if successful, else False'''
-        raise NotImplemented
+        raise NotImplementedError
 
     def _resume(self):
         '''Resume playback at the same time position playback was paused.
@@ -72,7 +66,7 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         MAY be reimplemented by subclass.
 
         Return type:	True if successful, else False'''
-        raise NotImplemented
+        raise NotImplementedError
 
     def _seek(self, time_position):
         '''Seek to a given time position.
@@ -81,7 +75,7 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
 
         Parameters:	time_position (int) – time position in milliseconds
         Return type:	True if successful, else False'''
-        raise NotImplemented
+        raise NotImplementedError
 
     def _stop(self):
         '''Stop playback.
@@ -91,4 +85,4 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         Should not be used for tracking if tracks have been played or when we are done playing them.
 
         Return type:	True if successful, else False'''
-        raise NotImplemented
+        raise NotImplementedError
