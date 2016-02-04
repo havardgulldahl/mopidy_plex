@@ -28,7 +28,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
             _ref = Ref.track
         else:
             _ref = Ref.directory
-        return _ref(uri=self.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
+        return _ref(uri=self.plex.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
                     name=item.title)
 
     def browse(self, uri):
@@ -87,20 +87,6 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         return []
 
-    def wrap_track(self, searchhit):
-        '''Wrap a plex search result in mopidy.model.track'''
-        return Track(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:track'),
-                     name=searchhit.title,
-                     artists=[Artist(uri=self.backend.plex_uri(searchhit.grandparentKey, 'plex:artist'),
-                                     name=searchhit.grandparentTitle)],
-                     album=Album(uri=self.backend.plex_uri(searchhit.parentKey, 'plex:album'),
-                                 name=searchhit.parentTitle),
-                     track_no=None, #searchhit.index,
-                     length=searchhit.duration,
-                     # TODO: bitrate=searchhit.media.bitrate,
-                     comment=searchhit.summary
-                    )
-
     def lookup(self, uri):
         '''Lookup the given URIs.
         Return type:
@@ -128,7 +114,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
             plextrack = plexaudio.build_item(self.plex,
                                              item,
                                              '/library/metadata/{}'.format(item.attrib['ratingKey']))
-            ret.append(self.wrap_track(plextrack))
+            ret.append(wrap_track(plextrack, self.backend.plex_uri))
         return ret
 
 
@@ -181,51 +167,17 @@ class PlexLibraryProvider(backend.LibraryProvider):
         search_uri = 'plex:search:%s' % urllib.quote(search_query.encode('utf-8'))
         logger.info("Searching Plex with query '%s'", search_query)
 
-
-        def wrap_artist(searchhit):
-            '''Wrap a plex search result in mopidy.model.artist'''
-            return Artist(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:artist'),
-                          name=searchhit.title)
-
-        def wrap_album(searchhit):
-            '''Wrap a plex search result in mopidy.model.album'''
-            return Album(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:album'),
-                         name=searchhit.title,
-                         artists=[Artist(uri=self.backend.plex_uri(searchhit.parentKey, 'plex:artist'),
-                                         name=searchhit.parentTitle)],
-                         num_tracks=searchhit.leafCount,
-                         num_discs=None,
-                         date=str(searchhit.year),
-                         images=[self.backend.resolve_uri(searchhit.thumb),
-                                 self.backend.resolve_uri(searchhit.art)]
-                        )
-
-        def wrap_track(searchhit):
-            '''Wrap a plex search result in mopidy.model.track'''
-            return Track(uri=self.backend.plex_uri(searchhit.ratingKey, 'plex:track'),
-                         name=searchhit.title,
-                         artists=[Artist(uri=self.plex_uri(searchhit.grandparentKey, 'plex:artist'),
-                                         name=searchhit.grandparentTitle)],
-                         album=Album(uri=self.plex_uri(searchhit.parentKey, 'plex:album'),
-                                     name=searchhit.parentTitle),
-                         track_no=searchhit.index,
-                         length=searchhit.duration,
-                         # TODO: bitrate=searchhit.media.bitrate,
-                         comment=searchhit.summary
-                        )
-
-
         artists = []
         tracks = []
         albums = []
         for hit in self.plex.searchAudio(search_query):
             logger.debug('Got plex hit from query "%s": %s', search_query, hit)
             if isinstance(hit, plexaudio.Artist):
-                artists.append(wrap_artist(hit))
+                artists.append(wrap_artist(hit, self.backend.plex_uri))
             elif isinstance(hit, plexaudio.Track):
-                tracks.append(wrap_track(hit))
+                tracks.append(wrap_track(hit, self.backend.plex_uri))
             elif isinstance(hit, plexaudio.Album):
-                albums.append(wrap_album(hit))
+                albums.append(wrap_album(hit, self.backend.plex_uri, self.backend.resolve_uri))
 
 
         logger.debug("Got results: %s, %s, %s", artists, tracks, albums)
@@ -236,3 +188,41 @@ class PlexLibraryProvider(backend.LibraryProvider):
             artists=artists,
             albums=albums
         )
+
+
+def wrap_track(plextrack, plex_uri_method):
+    '''Wrap a plex search result in mopidy.model.track'''
+    return Track(uri=plex_uri_method(plextrack.ratingKey, 'plex:track'),
+                 name=plextrack.title,
+                 artists=[Artist(uri=plex_uri_method(plextrack.grandparentKey, 'plex:artist'),
+                                 name=plextrack.grandparentTitle)],
+                 album=Album(uri=plex_uri_method(plextrack.parentKey, 'plex:album'),
+                             name=plextrack.parentTitle),
+                 track_no=None, #plextrack.index,
+                 length=plextrack.duration,
+                 # TODO: bitrate=plextrack.media.bitrate,
+                 comment=plextrack.summary
+                )
+
+
+
+def wrap_artist(plexartist, plex_uri_method):
+    '''Wrap a plex search result in mopidy.model.artist'''
+    return Artist(uri=plex_uri_method(plexartist.ratingKey, 'plex:artist'),
+                  name=plexartist.title)
+
+
+
+def wrap_album(plexalbum, plex_uri_method, resolve_uri_method):
+    '''Wrap a plex search result in mopidy.model.album'''
+    return Album(uri=plex_uri_method(plexalbum.ratingKey, 'plex:album'),
+                 name=plexalbum.title,
+                 artists=[Artist(uri=plex_uri_method(plexalbum.parentKey, 'plex:artist'),
+                                 name=plexalbum.parentTitle)],
+                 num_tracks=plexalbum.leafCount,
+                 num_discs=None,
+                 date=str(plexalbum.year),
+                 images=[resolve_uri_method(plexalbum.thumb),
+                         resolve_uri_method(plexalbum.art)]
+                )
+
