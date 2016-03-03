@@ -10,11 +10,10 @@ from mopidy.models import Artist, Album, SearchResult, Track, Ref
 from plexapi import audio as plexaudio
 
 from mopidy_plex import logger
-
+from .mwt import MWT
 
 class PlexLibraryProvider(backend.LibraryProvider):
     root_directory = Ref.directory(uri='plex:directory', name='Plex Music')
-
 
     def __init__(self, *args, **kwargs):
         super(PlexLibraryProvider, self).__init__(*args, **kwargs)
@@ -28,9 +27,10 @@ class PlexLibraryProvider(backend.LibraryProvider):
             _ref = Ref.track
         else:
             _ref = Ref.directory
-        return _ref(uri=self.plex.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
+        return _ref(uri=self.backend.plex_uri(item.ratingKey, 'plex:{}'.format(item_type)),
                     name=item.title)
 
+    @MWT(timeout=3600)
     def browse(self, uri):
         logger.debug('browse: %s', str(uri))
         if not uri:
@@ -87,6 +87,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         return []
 
+    @MWT(timeout=3600)
     def lookup(self, uri):
         '''Lookup the given URIs.
         Return type:
@@ -118,6 +119,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         return ret
 
 
+    @MWT(timeout=3600)
     def get_images(self, uris):
         '''Lookup the images for the given URIs
 
@@ -129,6 +131,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         Return type:    {uri: tuple of mopidy.models.Image}'''
         return None
 
+    @MWT(timeout=3600)
     def search(self, query=None, uris=None, exact=False):
         '''Search the library for tracks where field contains values.
 

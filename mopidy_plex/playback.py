@@ -9,9 +9,11 @@ from mopidy import backend
 from plexapi import audio as plexaudio
 
 from mopidy_plex import logger
+from .mwt import MWT
 
 class PlexPlaybackProvider(backend.PlaybackProvider):
 
+    @MWT(timeout=3600)
     def translate_uri(self, uri):
         '''Convert custom URI scheme to real playable URI.
 

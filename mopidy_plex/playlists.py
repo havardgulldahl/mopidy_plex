@@ -11,6 +11,7 @@ from plexapi import audio as plexaudio, playlist as plexplaylist
 
 from mopidy_plex import logger
 from .library import wrap_track
+from .mwt import MWT
 
 
 class PlexPlaylistsProvider(backend.PlaylistsProvider):
@@ -19,6 +20,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         self.plex = self.backend.plex
 
 
+    @MWT(timeout=3600)
     def as_list(self):
         '''Get a list of the currently available playlists.
 
@@ -42,6 +44,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         logger.debug('Playlist: delete %r', uri)
 
 
+    @MWT(timeout=3600)
     def get_items(self, uri):
         '''Get the items in a playlist specified by uri.
 
@@ -62,9 +65,10 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
             return Ref.track(uri='plex:track:{}'.format(item.ratingKey), name=item.title)
 
         return [wrap_ref(item) for item in
-                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.groups('plid')))]
+                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.group('plid')))]
 
 
+    @MWT(timeout=3600)
     def lookup(self, uri):
         '''Lookup playlist with given URI in both the set of playlists and in any other playlist source.
 
@@ -79,10 +83,10 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         _rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
         if _rx is None:
             return None
-        plexlist = plexplaylist.list_items(self.plex, '/playlists/{:s}'.format(_rx.groups('plid')))[0]
+        plexlist = plexplaylist.list_items(self.plex, '/playlists/{:s}'.format(_rx.group('plid')))[0]
         PL = Playlist(uri=uri,
                       name=plexlist.title,
-                      tracks=[wrap_track(_t, self.plex.plex_uri) for _t in plexlist.tracks()],
+                      tracks=[wrap_track(_t, self.backend.plex_uri) for _t in plexlist.items()],
                       last_modified=None, # TODO: find this value
                      )
         return PL
