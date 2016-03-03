@@ -11,7 +11,6 @@ def get_version(filename):
         metadata = dict(re.findall("__([a-z]+)__ = '([^']+)'", fh.read()))
         return metadata['version']
 
-
 setup(
     name='Mopidy-Plex',
     version=get_version('mopidy_plex/__init__.py'),
