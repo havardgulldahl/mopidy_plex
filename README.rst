@@ -40,9 +40,10 @@ And you need the `python-plexapi` module as well::
 Extra setup hassle
 -------------------
 
-**Please note** that you need the `python-plexapi` package *with music support*, a.k.a *Plex Audio*!
-As of 2016-02-02, that functionality is not yet upstream, so you need to install it from
-https://github.com/havardgulldahl/python-plexapi for now.
+**Update 2016-04-14** 
+
+Please pull  `python-plexapi`  directly from upstream at https://github.com/mjs7231/python-plexapi, which has proper Plex Audio support since https://github.com/mjs7231/python-plexapi/commit/443d1e76d8b7bc6e5181bb9791fb56b7462055e8 / March 15th.
+The upcoming 2.0 release of `python-plexapi` will contain this, so get that from PyPi when it is released there.
 
 
 
