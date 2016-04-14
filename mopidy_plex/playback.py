@@ -7,6 +7,7 @@ import re
 from mopidy import backend
 
 from plexapi import audio as plexaudio
+from plexapi import utils as plexutils
 
 from mopidy_plex import logger
 from .mwt import MWT
@@ -32,10 +33,16 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         if _rx is None: # uri unknown
             logger.info('Unkown uri: %s', uri)
             return None
-        elem = plexaudio.find_key(self.backend.plex, _rx.group('track_id'))
-        logger.debug('returning stream for elem %r', elem)
-        return elem.getStreamUrl()
-
+        elem = plexutils.findKey(self.backend.plex, _rx.group('track_id'))
+        logger.info('getting file parts for eleme %r', elem)
+        try:
+            p = list(elem.iterParts())[0].key # hackisly get direct url of first part
+            return '%s%s' % (elem.server.baseurl, p)
+        except Exception as e:
+            logger.exception(e)
+            logger.info('fallback to returning stream for elem %r', elem)
+            return elem.getStreamUrl()
+            
 
     def _get_time_position(self):
         '''Get the current time position in milliseconds.

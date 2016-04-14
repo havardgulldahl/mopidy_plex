@@ -8,6 +8,7 @@ from mopidy import backend
 from mopidy.models import Ref, Playlist
 
 from plexapi import audio as plexaudio, playlist as plexplaylist
+from plexapi.utils import listItems
 
 from mopidy_plex import logger
 from .library import wrap_track
@@ -27,8 +28,10 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         Returns a list of `mopidy.models.Ref` objects referring to the playlists.
         In other words, no information about the playlists’ content is given.'''
         logger.debug('Playlist: as_list')
-        return [Ref(uri='plex:playlist:{}'.format(playlist.ratingKey), name=playlist.title)
-                for playlist in self.plex.playlists(playlisttype='audio')]
+        audiolists = [l for l in self.plex.playlists() if l.playlistType == 'audio']
+        return [Ref(uri='plex:playlist:{}'.format(playlist.ratingKey), 
+                    name=playlist.title)
+                for playlist in audiolists]
 
 
     def create(self, name):
@@ -65,7 +68,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
             return Ref.track(uri='plex:track:{}'.format(item.ratingKey), name=item.title)
 
         return [wrap_ref(item) for item in
-                plexaudio.list_items(self.plex, '/playlists/{}/items'.format(_rx.group('plid')))]
+                listItems(self.plex, '/playlists/{}/items'.format(_rx.group('plid')))]
 
 
     @MWT(timeout=3600)
@@ -83,7 +86,7 @@ class PlexPlaylistsProvider(backend.PlaylistsProvider):
         _rx = re.compile(r'plex:playlist:(?P<plid>\d+)').match(uri)
         if _rx is None:
             return None
-        plexlist = plexplaylist.list_items(self.plex, '/playlists/{:s}'.format(_rx.group('plid')))[0]
+        plexlist = listItems(self.plex, '/playlists/{:s}'.format(_rx.group('plid')))[0]
         PL = Playlist(uri=uri,
                       name=plexlist.title,
                       tracks=[wrap_track(_t, self.backend.plex_uri) for _t in plexlist.items()],

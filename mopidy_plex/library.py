@@ -8,6 +8,7 @@ from mopidy import backend
 from mopidy.models import Artist, Album, SearchResult, Track, Ref
 
 from plexapi import audio as plexaudio
+from plexapi import utils as plexutils
 
 from mopidy_plex import logger
 from .mwt import MWT
@@ -43,7 +44,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
         if uri == 'plex:album':
             logger.debug('self._browse_albums()')
             return [self._item_ref(item, 'album') for item in
-                    plexaudio.list_items(self.plex, '/library/sections/4/albums')]
+                    plexutils.listItems(self.plex, '/library/sections/4/albums')]
 
         # a single album
         # uri == 'plex:album:album_id'
@@ -51,14 +52,14 @@ class PlexLibraryProvider(backend.LibraryProvider):
             logger.debug('self._browse_album(uri)')
             album_id = parts[2]
             return [self._item_ref(item, 'track') for item in
-                    plexaudio.list_items(self.plex,
+                    plexutils.listItems(self.plex,
                                          '/library/metadata/{}/children'.format(album_id))]
 
         # artists
         if uri == 'plex:artist':
             logger.debug('self._browse_artists()')
             return [self._item_ref(item, 'artist') for item in
-                    plexaudio.list_items(self.plex, '/library/sections/4/all')]
+                    plexutils.listItems(self.plex, '/library/sections/4/all')]
 
         # a single artist
         # uri == 'plex:artist:artist_id'
@@ -67,10 +68,10 @@ class PlexLibraryProvider(backend.LibraryProvider):
             artist_id = parts[2]
             # get albums and tracks
             ret = []
-            for item in plexaudio.list_items(self.plex,
+            for item in plexutils.listItems(self.plex,
                                              '/library/metadata/{}/children'.format(artist_id)):
                 ret.append(self._item_ref(item, 'album'))
-            for item in plexaudio.list_items(self.plex,
+            for item in plexutils.listItems(self.plex,
                                              '/library/metadata/{}/allLeaves'.format(artist_id)):
                 ret.append(self._item_ref(item, 'track'))
             return ret
@@ -81,7 +82,7 @@ class PlexLibraryProvider(backend.LibraryProvider):
             logger.debug('self._browse_artist_all_tracks(uri)')
             artist_id = parts[2]
             return [self._item_ref(item, 'track') for item in
-                    plexaudio.list_items(self.plex, '/library/metadata/{}/allLeaves'.format(artist_id))]
+                    plexutils.listItems(self.plex, '/library/metadata/{}/allLeaves'.format(artist_id))]
 
         logger.debug('Unknown uri for browse request: %s', uri)
 
@@ -112,9 +113,9 @@ class PlexLibraryProvider(backend.LibraryProvider):
 
         ret = []
         for item in self.plex.query(plex_uri):
-            plextrack = plexaudio.build_item(self.plex,
-                                             item,
-                                             '/library/metadata/{}'.format(item.attrib['ratingKey']))
+            plextrack = plexutils.buildItem(self.plex,
+                                            item,
+                                            '/library/metadata/{}'.format(item.attrib['ratingKey']))
             ret.append(wrap_track(plextrack, self.backend.plex_uri))
         return ret
 
