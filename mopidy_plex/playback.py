@@ -37,12 +37,12 @@ class PlexPlaybackProvider(backend.PlaybackProvider):
         logger.info('getting file parts for eleme %r', elem)
         try:
             p = list(elem.iterParts())[0].key # hackisly get direct url of first part
-            return '%s%s' % (elem.server.baseurl, p)
+            return '%s%s?X-Plex-Token=%s' % (elem.server.baseurl, p, self.backend.plex.token)
         except Exception as e:
             logger.exception(e)
             logger.info('fallback to returning stream for elem %r', elem)
             return elem.getStreamUrl()
-            
+
 
     def _get_time_position(self):
         '''Get the current time position in milliseconds.

@@ -10,6 +10,7 @@ import requests
 
 from plexapi.server import PlexServer
 from plexapi.library import MusicSection
+from plexapi.myplex import MyPlexAccount
 from .playlists import PlexPlaylistsProvider
 from .playback import PlexPlaybackProvider
 from .library import PlexLibraryProvider
@@ -36,7 +37,8 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
                                             user_agent='%s/%s' % (mopidy_plex.Extension.dist_name,
                                                                   mopidy_plex.__version__)
                                            )
-        self.plex = PlexServer(config['plex']['server'], session=self.session)
+        self.account = MyPlexAccount.signin(config['plex']['username'], config['plex']['password'])
+        self.plex = self.account.resource(config['plex']['server']).connect()
         self.music = [s for s in self.plex.library.sections() if s.TYPE == MusicSection.TYPE][0]
         logger.debug('Found music section on plex server %s: %s', self.plex, self.music)
         self.uri_schemes = ['plex', ]
@@ -66,4 +68,3 @@ class PlexBackend(pykka.ThreadingActor, backend.Backend):
         if not uri_path.startswith('/library/metadata/'):
             uri_path = '/library/metadata/' + uri_path
         return self.plex.url(uri_path)
-
