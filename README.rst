@@ -55,7 +55,11 @@ Mopidy-Plex to your Mopidy configuration file::
 
     [plex]
     enabled = true
-    server = http://192.168.0.105:32400
+    server = Servername
+    username = Username
+    password = Password
+
+Servername above is the name of the server (not the hostname and port). If logged into Plex Web you can see the server name in the top left above your available libraries.
 
 
 Project resources
@@ -88,3 +92,8 @@ v0.1.0b (2016-02-02)
 - Playing audio works.
 - Please `file bugs <https://github.com/havardgulldahl/mopidy-plex/issues>`_.
 
+
+v0.1.0c (2016-06-29)
+----------------------------------------
+
+- Add support for remote Plex Servers
